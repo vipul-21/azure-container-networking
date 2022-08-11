@@ -94,7 +94,8 @@ func (client *TransparentEndpointClient) AddEndpoints(epInfo *EndpointInfo) erro
 		return newErrorTransparentEndpointClient(err.Error())
 	}
 
-	if mac, err := net.ParseMAC(defaultHostVethHwAddr); err != nil {
+	mac, err := net.ParseMAC(defaultHostVethHwAddr)
+	if err != nil {
 		log.Errorf("Failed to parse MAC Address:", err)
 	} else {
 		if err = client.netlink.SetLinkAddress(client.hostVethName, mac); err != nil {
