@@ -52,6 +52,10 @@ type LinkInfo struct {
 	TxQLen      uint
 	ParentIndex int
 	MacAddress  net.HardwareAddr
+	Mode        int
+	IpAddr      net.IP
+	IsProxy     bool
+	State       int
 }
 
 func (linkInfo *LinkInfo) Info() *LinkInfo {
@@ -421,8 +425,8 @@ func (Netlink) SetLinkHairpin(bridgeName string, on bool) error {
 	return s.sendAndWaitForAck(req)
 }
 
-// AddOrRemoveStaticArp sets/removes static arp entry based on mode
-func (Netlink) AddOrRemoveStaticArp(mode int, name string, ipaddr net.IP, mac net.HardwareAddr, isProxy bool) error {
+// SetOrRemoveLinkAddress sets/removes static arp entry based on mode
+func (Netlink) SetOrRemoveLinkAddress(linkInfo LinkInfo) error {
 	s, err := getSocket()
 	if err != nil {
 		return err
@@ -430,41 +434,40 @@ func (Netlink) AddOrRemoveStaticArp(mode int, name string, ipaddr net.IP, mac ne
 
 	var req *message
 	state := 0
-	if mode == ADD {
+	if linkInfo.Mode == ADD {
 		req = newRequest(unix.RTM_NEWNEIGH, unix.NLM_F_CREATE|unix.NLM_F_REPLACE|unix.NLM_F_ACK)
-		state = NUD_PROBE
 	} else {
 		req = newRequest(unix.RTM_DELNEIGH, unix.NLM_F_ACK)
-		state = NUD_INCOMPLETE
 	}
+	state = linkInfo.State
 
-	iface, err := net.InterfaceByName(name)
+	iface, err := net.InterfaceByName(linkInfo.Name)
 	if err != nil {
 		return err
 	}
 
 	msg := neighMsg{
-		Family: uint8(GetIPAddressFamily(ipaddr)),
+		Family: uint8(GetIPAddressFamily(linkInfo.IpAddr)),
 		Index:  uint32(iface.Index),
 		State:  uint16(state),
 	}
 
 	// NTF_PROXY is for setting neighbor proxy
-	if isProxy {
+	if linkInfo.IsProxy {
 		msg.Flags = msg.Flags | NTF_PROXY
 	}
 
 	req.addPayload(&msg)
 
-	ipData := ipaddr.To4()
+	ipData := linkInfo.IpAddr.To4()
 	if ipData == nil {
-		ipData = ipaddr.To16()
+		ipData = linkInfo.IpAddr.To16()
 	}
 
 	dstData := newRtAttr(NDA_DST, ipData)
 	req.addPayload(dstData)
 
-	hwData := newRtAttr(NDA_LLADDR, []byte(mac))
+	hwData := newRtAttr(NDA_LLADDR, []byte(linkInfo.MacAddress))
 	req.addPayload(hwData)
 
 	return s.sendAndWaitForAck(req)

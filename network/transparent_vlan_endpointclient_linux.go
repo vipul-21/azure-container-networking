@@ -403,7 +403,16 @@ func (client *TransparentVlanEndpointClient) AddDefaultArp(interfaceName, destMa
 	if err != nil {
 		return errors.Wrap(err, "unable to parse mac")
 	}
-	if err := client.netlink.AddOrRemoveStaticArp(netlink.ADD, interfaceName, virtualGwNet.IP, hardwareAddr, false); err != nil {
+	linkInfo := netlink.LinkInfo{
+		Mode:       netlink.ADD,
+		Name:       interfaceName,
+		IpAddr:     virtualGwNet.IP,
+		MacAddress: hardwareAddr,
+		IsProxy:    false,
+		State:      netlink.NUD_PROBE,
+	}
+
+	if err := client.netlink.SetOrRemoveLinkAddress(linkInfo); err != nil {
 		return fmt.Errorf("adding arp entry failed: %w", err)
 	}
 	return nil

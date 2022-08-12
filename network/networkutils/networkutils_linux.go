@@ -30,12 +30,11 @@ RFC for Link Local Addresses: https://tools.ietf.org/html/rfc3927
 */
 
 const (
-	enableIPForwardCmd    = "sysctl -w net.ipv4.ip_forward=1"
-	toggleIPV6Cmd         = "sysctl -w net.ipv6.conf.all.disable_ipv6=%d"
-	enableIPV6ForwardCmd  = "sysctl -w net.ipv6.conf.all.forwarding=1"
-	disableRACmd          = "sysctl -w net.ipv6.conf.%s.accept_ra=0"
-	acceptRAV6File        = "/proc/sys/net/ipv6/conf/%s/accept_ra"
-	defaultHostVethHwAddr = "aa:aa:aa:aa:aa:aa"
+	enableIPForwardCmd   = "sysctl -w net.ipv4.ip_forward=1"
+	toggleIPV6Cmd        = "sysctl -w net.ipv6.conf.all.disable_ipv6=%d"
+	enableIPV6ForwardCmd = "sysctl -w net.ipv6.conf.all.forwarding=1"
+	disableRACmd         = "sysctl -w net.ipv6.conf.%s.accept_ra=0"
+	acceptRAV6File       = "/proc/sys/net/ipv6/conf/%s/accept_ra"
 )
 
 var errorNetworkUtils = errors.New("NetworkUtils Error")
@@ -56,24 +55,23 @@ func NewNetworkUtils(nl netlink.NetlinkInterface, plClient platform.ExecClient) 
 	}
 }
 
-func (nu NetworkUtils) CreateEndpoint(hostVethName, containerVethName string) error {
+func (nu NetworkUtils) CreateEndpoint(hostVethName, containerVethName string, macAddress ...net.HardwareAddr) error {
 	log.Printf("[net] Creating veth pair %v %v.", hostVethName, containerVethName)
 
-	mac, err := net.ParseMAC(defaultHostVethHwAddr)
-	if err != nil {
-		log.Printf("[net] Failed to parse the mac addrress %v", defaultHostVethHwAddr)
-		return newErrorNetworkUtils(err.Error())
+	var address net.HardwareAddr = nil
+	if len(macAddress) > 0 {
+		address = macAddress[0]
 	}
 	link := netlink.VEthLink{
 		LinkInfo: netlink.LinkInfo{
 			Type:       netlink.LINK_TYPE_VETH,
 			Name:       hostVethName,
-			MacAddress: mac,
+			MacAddress: address,
 		},
 		PeerName: containerVethName,
 	}
 
-	err = nu.netlink.AddLink(&link)
+	err := nu.netlink.AddLink(&link)
 	if err != nil {
 		log.Printf("[net] Failed to create veth pair, err:%v.", err)
 		return newErrorNetworkUtils(err.Error())
