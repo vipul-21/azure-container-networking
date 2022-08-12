@@ -253,24 +253,12 @@ func (client *TransparentEndpointClient) ConfigureContainerInterfacesAndRoutes(e
 	log.Printf("[net] Adding static arp for IP address %v and MAC %v in Container namespace",
 		virtualGwNet.String(), client.hostVethMac)
 	linkInfo := netlink.LinkInfo{
-<<<<<<< Updated upstream
-		Mode:       netlink.ADD,
-		Name:       client.containerVethName,
-		IpAddr:     virtualGwNet.IP,
-		MacAddress: client.hostVethMac,
-		IsProxy:    false,
-		State:      netlink.NUD_PROBE,
-	}
-
-	if err := client.netlink.SetOrRemoveLinkAddress(linkInfo); err != nil {
-=======
 		Name:       client.containerVethName,
 		IpAddr:     virtualGwNet.IP,
 		MacAddress: client.hostVethMac,
 	}
 
 	if err := client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PROBE); err != nil {
->>>>>>> Stashed changes
 		return fmt.Errorf("Adding arp in container failed: %w", err)
 	}
 
