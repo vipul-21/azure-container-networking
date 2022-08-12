@@ -13,16 +13,15 @@ import (
 )
 
 const (
-	virtualGwIPString     = "169.254.1.1/32"
-	defaultGwCidr         = "0.0.0.0/0"
-	defaultGw             = "0.0.0.0"
-	virtualv6GwString     = "fe80::1234:5678:9abc/128"
-	defaultHostVethHwAddr = "aa:aa:aa:aa:aa:aa"
-	defaultv6Cidr         = "::/0"
-	ipv4Bits              = 32
-	ipv6Bits              = 128
-	ipv4FullMask          = 32
-	ipv6FullMask          = 128
+	virtualGwIPString = "169.254.1.1/32"
+	defaultGwCidr     = "0.0.0.0/0"
+	defaultGw         = "0.0.0.0"
+	virtualv6GwString = "fe80::1234:5678:9abc/128"
+	defaultv6Cidr     = "::/0"
+	ipv4Bits          = 32
+	ipv6Bits          = 128
+	ipv4FullMask      = 32
+	ipv6FullMask      = 128
 )
 
 var errorTransparentEndpointClient = errors.New("TransparentEndpointClient Error")
@@ -92,15 +91,6 @@ func (client *TransparentEndpointClient) AddEndpoints(epInfo *EndpointInfo) erro
 
 	if err = client.netUtilsClient.CreateEndpoint(client.hostVethName, client.containerVethName); err != nil {
 		return newErrorTransparentEndpointClient(err.Error())
-	}
-
-	mac, err := net.ParseMAC(defaultHostVethHwAddr)
-	if err != nil {
-		log.Errorf("Failed to parse MAC Address:", err)
-	} else {
-		if err = client.netlink.SetLinkAddress(client.hostVethName, mac); err != nil {
-			log.Errorf("Failed to set Harware address on the veth interface %v: %v.", client.hostVethName, err)
-		}
 	}
 
 	defer func() {

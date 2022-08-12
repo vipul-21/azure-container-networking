@@ -51,6 +51,7 @@ type LinkInfo struct {
 	MTU         uint
 	TxQLen      uint
 	ParentIndex int
+	MacAddress  net.HardwareAddr
 }
 
 func (linkInfo *LinkInfo) Info() *LinkInfo {
@@ -121,6 +122,11 @@ func (Netlink) AddLink(link Link) error {
 	// Set parent interface index.
 	if info.ParentIndex != 0 {
 		req.addPayload(newAttributeUint32(unix.IFLA_LINK, uint32(info.ParentIndex)))
+	}
+
+	// Set the mac address on the interface
+	if info.MacAddress != nil {
+		req.addPayload(newRtAttr(unix.IFLA_ADDRESS, []byte(info.MacAddress)))
 	}
 
 	// Set link info.
@@ -426,7 +432,7 @@ func (Netlink) AddOrRemoveStaticArp(mode int, name string, ipaddr net.IP, mac ne
 	state := 0
 	if mode == ADD {
 		req = newRequest(unix.RTM_NEWNEIGH, unix.NLM_F_CREATE|unix.NLM_F_REPLACE|unix.NLM_F_ACK)
-		state = NUD_PERMANENT
+		state = NUD_PROBE
 	} else {
 		req = newRequest(unix.RTM_DELNEIGH, unix.NLM_F_ACK)
 		state = NUD_INCOMPLETE
