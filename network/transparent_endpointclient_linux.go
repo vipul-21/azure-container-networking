@@ -253,6 +253,7 @@ func (client *TransparentEndpointClient) ConfigureContainerInterfacesAndRoutes(e
 	log.Printf("[net] Adding static arp for IP address %v and MAC %v in Container namespace",
 		virtualGwNet.String(), client.hostVethMac)
 	linkInfo := netlink.LinkInfo{
+<<<<<<< Updated upstream
 		Mode:       netlink.ADD,
 		Name:       client.containerVethName,
 		IpAddr:     virtualGwNet.IP,
@@ -262,6 +263,14 @@ func (client *TransparentEndpointClient) ConfigureContainerInterfacesAndRoutes(e
 	}
 
 	if err := client.netlink.SetOrRemoveLinkAddress(linkInfo); err != nil {
+=======
+		Name:       client.containerVethName,
+		IpAddr:     virtualGwNet.IP,
+		MacAddress: client.hostVethMac,
+	}
+
+	if err := client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PROBE); err != nil {
+>>>>>>> Stashed changes
 		return fmt.Errorf("Adding arp in container failed: %w", err)
 	}
 
@@ -304,15 +313,12 @@ func (client *TransparentEndpointClient) setIPV6NeighEntry() error {
 	log.Printf("[net] Add v6 neigh entry for default gw ip")
 	hostGwIP, _, _ := net.ParseCIDR(virtualv6GwString)
 	linkInfo := netlink.LinkInfo{
-		Mode:       netlink.ADD,
 		Name:       client.containerVethName,
 		IpAddr:     hostGwIP,
 		MacAddress: client.hostVethMac,
-		IsProxy:    false,
-		State:      netlink.NUD_PROBE,
 	}
 
-	if err := client.netlink.SetOrRemoveLinkAddress(linkInfo); err != nil {
+	if err := client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PROBE); err != nil {
 		log.Printf("Failed setting neigh entry in container: %+v", err)
 		return fmt.Errorf("Failed setting neigh entry in container: %w", err)
 	}

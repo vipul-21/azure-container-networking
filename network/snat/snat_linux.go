@@ -210,15 +210,12 @@ func (client *Client) AllowInboundFromHostToNC() error {
 	// Add static arp entry for localIP to prevent arp going out of VM
 	log.Printf("Adding static arp entry for ip %s mac %s", containerIP, snatContainerVeth.HardwareAddr.String())
 	linkInfo := netlink.LinkInfo{
-		Mode:       netlink.ADD,
 		Name:       SnatBridgeName,
 		IpAddr:     containerIP,
 		MacAddress: snatContainerVeth.HardwareAddr,
-		IsProxy:    false,
-		State:      netlink.NUD_PROBE,
 	}
 
-	err = client.netlink.SetOrRemoveLinkAddress(linkInfo)
+	err = client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PROBE)
 	if err != nil {
 		log.Printf("AllowInboundFromHostToNC: Error adding static arp entry for ip %s mac %s: %v", containerIP, snatContainerVeth.HardwareAddr.String(), err)
 		return newErrorSnatClient(err.Error())
@@ -240,15 +237,12 @@ func (client *Client) DeleteInboundFromHostToNC() error {
 	// Remove static arp entry added for container local IP
 	log.Printf("Removing static arp entry for ip %s ", containerIP)
 	linkInfo := netlink.LinkInfo{
-		Mode:       netlink.REMOVE,
 		Name:       SnatBridgeName,
 		IpAddr:     containerIP,
 		MacAddress: nil,
-		IsProxy:    false,
-		State:      netlink.NUD_INCOMPLETE,
 	}
 
-	err = client.netlink.SetOrRemoveLinkAddress(linkInfo)
+	err = client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.REMOVE, netlink.NUD_INCOMPLETE)
 	if err != nil {
 		log.Printf("AllowInboundFromHostToNC: Error removing static arp entry for ip %s: %v", containerIP, err)
 	}
@@ -307,15 +301,12 @@ func (client *Client) AllowInboundFromNCToHost() error {
 	// Add static arp entry for localIP to prevent arp going out of VM
 	log.Printf("Adding static arp entry for ip %s mac %s", containerIP, snatContainerVeth.HardwareAddr.String())
 	linkInfo := netlink.LinkInfo{
-		Mode:       netlink.ADD,
 		Name:       SnatBridgeName,
 		IpAddr:     containerIP,
 		MacAddress: snatContainerVeth.HardwareAddr,
-		IsProxy:    false,
-		State:      netlink.NUD_PROBE,
 	}
 
-	err = client.netlink.SetOrRemoveLinkAddress(linkInfo)
+	err = client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PROBE)
 	if err != nil {
 		log.Printf("AllowInboundFromNCToHost: Error adding static arp entry for ip %s mac %s: %v", containerIP, snatContainerVeth.HardwareAddr.String(), err)
 	}
@@ -336,15 +327,12 @@ func (client *Client) DeleteInboundFromNCToHost() error {
 	// Remove static arp entry added for container local IP
 	log.Printf("Removing static arp entry for ip %s ", containerIP)
 	linkInfo := netlink.LinkInfo{
-		Mode:       netlink.REMOVE,
 		Name:       SnatBridgeName,
 		IpAddr:     containerIP,
 		MacAddress: nil,
-		IsProxy:    false,
-		State:      netlink.NUD_INCOMPLETE,
 	}
 
-	err = client.netlink.SetOrRemoveLinkAddress(linkInfo)
+	err = client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.REMOVE, netlink.NUD_INCOMPLETE)
 	if err != nil {
 		log.Printf("DeleteInboundFromNCToHost: Error removing static arp entry for ip %s: %v", containerIP, err)
 	}

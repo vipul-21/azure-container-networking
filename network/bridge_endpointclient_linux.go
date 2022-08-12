@@ -99,6 +99,7 @@ func (client *LinuxBridgeEndpointClient) AddEndpointRules(epInfo *EndpointInfo) 
 		if client.mode != opModeTunnel && ipAddr.IP.To4() != nil {
 			log.Printf("[net] Adding static arp for IP address %v and MAC %v in VM", ipAddr.String(), client.containerMac.String())
 			linkInfo := netlink.LinkInfo{
+<<<<<<< Updated upstream
 				Mode:       netlink.ADD,
 				Name:       client.bridgeName,
 				IpAddr:     ipAddr.IP,
@@ -108,6 +109,14 @@ func (client *LinuxBridgeEndpointClient) AddEndpointRules(epInfo *EndpointInfo) 
 			}
 
 			if err := client.netlink.SetOrRemoveLinkAddress(linkInfo); err != nil {
+=======
+				Name:       client.bridgeName,
+				IpAddr:     ipAddr.IP,
+				MacAddress: client.containerMac,
+			}
+
+			if err := client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PROBE); err != nil {
+>>>>>>> Stashed changes
 				log.Printf("Failed setting arp in vm: %v", err)
 			}
 		}
@@ -146,6 +155,7 @@ func (client *LinuxBridgeEndpointClient) DeleteEndpointRules(ep *endpoint) {
 		if client.mode != opModeTunnel && ipAddr.IP.To4() != nil {
 			log.Printf("[net] Removing static arp for IP address %v and MAC %v from VM", ipAddr.String(), ep.MacAddress.String())
 			linkInfo := netlink.LinkInfo{
+<<<<<<< Updated upstream
 				Mode:       netlink.REMOVE,
 				Name:       client.bridgeName,
 				IpAddr:     ipAddr.IP,
@@ -154,6 +164,13 @@ func (client *LinuxBridgeEndpointClient) DeleteEndpointRules(ep *endpoint) {
 				State:      netlink.NUD_INCOMPLETE,
 			}
 			err := client.netlink.SetOrRemoveLinkAddress(linkInfo)
+=======
+				Name:       client.bridgeName,
+				IpAddr:     ipAddr.IP,
+				MacAddress: ep.MacAddress,
+			}
+			err := client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.REMOVE, netlink.NUD_INCOMPLETE)
+>>>>>>> Stashed changes
 			if err != nil {
 				log.Printf("Failed removing arp from vm: %v", err)
 			}
@@ -308,14 +325,11 @@ func (client *LinuxBridgeEndpointClient) setIPV6NeighEntry(epInfo *EndpointInfo)
 		hardwareAddr, _ := net.ParseMAC(defaultHostGwMac)
 		hostGwIp := net.ParseIP(defaultV6HostGw)
 		linkInfo := netlink.LinkInfo{
-			Mode:       netlink.ADD,
 			Name:       client.containerVethName,
 			IpAddr:     hostGwIp,
 			MacAddress: hardwareAddr,
-			IsProxy:    false,
-			State:      netlink.NUD_PROBE,
 		}
-		if err := client.netlink.SetOrRemoveLinkAddress(linkInfo); err != nil {
+		if err := client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PROBE); err != nil {
 			log.Printf("Failed setting neigh entry in container: %v", err)
 			return err
 		}

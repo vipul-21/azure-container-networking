@@ -52,10 +52,7 @@ type LinkInfo struct {
 	TxQLen      uint
 	ParentIndex int
 	MacAddress  net.HardwareAddr
-	Mode        int
 	IpAddr      net.IP
-	IsProxy     bool
-	State       int
 }
 
 func (linkInfo *LinkInfo) Info() *LinkInfo {
@@ -426,7 +423,7 @@ func (Netlink) SetLinkHairpin(bridgeName string, on bool) error {
 }
 
 // SetOrRemoveLinkAddress sets/removes static arp entry based on mode
-func (Netlink) SetOrRemoveLinkAddress(linkInfo LinkInfo) error {
+func (Netlink) SetOrRemoveLinkAddress(linkInfo LinkInfo, mode int, linkState int) error {
 	s, err := getSocket()
 	if err != nil {
 		return err
@@ -434,12 +431,12 @@ func (Netlink) SetOrRemoveLinkAddress(linkInfo LinkInfo) error {
 
 	var req *message
 	state := 0
-	if linkInfo.Mode == ADD {
+	if mode == ADD {
 		req = newRequest(unix.RTM_NEWNEIGH, unix.NLM_F_CREATE|unix.NLM_F_REPLACE|unix.NLM_F_ACK)
 	} else {
 		req = newRequest(unix.RTM_DELNEIGH, unix.NLM_F_ACK)
 	}
-	state = linkInfo.State
+	state = linkState
 
 	iface, err := net.InterfaceByName(linkInfo.Name)
 	if err != nil {
@@ -450,11 +447,6 @@ func (Netlink) SetOrRemoveLinkAddress(linkInfo LinkInfo) error {
 		Family: uint8(GetIPAddressFamily(linkInfo.IpAddr)),
 		Index:  uint32(iface.Index),
 		State:  uint16(state),
-	}
-
-	// NTF_PROXY is for setting neighbor proxy
-	if linkInfo.IsProxy {
-		msg.Flags = msg.Flags | NTF_PROXY
 	}
 
 	req.addPayload(&msg)

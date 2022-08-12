@@ -285,29 +285,23 @@ func TestAddRemoveStaticArp(t *testing.T) {
 	nl := NewNetlink()
 
 	linkInfo := LinkInfo{
-		Mode:       ADD,
 		Name:       ifName,
 		IpAddr:     ip,
 		MacAddress: mac,
-		IsProxy:    false,
-		State:      NUD_PROBE,
 	}
 
-	err = nl.SetOrRemoveLinkAddress(linkInfo)
+	err = nl.SetOrRemoveLinkAddress(linkInfo, ADD, NUD_PROBE)
 	if err != nil {
 		t.Errorf("ret val %v", err)
 	}
 
 	linkInfo = LinkInfo{
-		Mode:       REMOVE,
 		Name:       ifName,
 		IpAddr:     ip,
 		MacAddress: mac,
-		IsProxy:    false,
-		State:      NUD_INCOMPLETE,
 	}
 
-	err = nl.SetOrRemoveLinkAddress(linkInfo)
+	err = nl.SetOrRemoveLinkAddress(linkInfo, REMOVE, NUD_INCOMPLETE)
 	if err != nil {
 		t.Errorf("ret val %v", err)
 	}

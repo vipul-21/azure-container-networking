@@ -62,7 +62,8 @@ func (Netlink) SetLinkHairpin(bridgeName string, on bool) error {
 	return nil
 }
 
-func (Netlink) SetOrRemoveLinkAddress(linkInfo LinkInfo) error {
+
+func (Netlink) SetOrRemoveLinkAddress(linkInfo LinkInfo, int, int) error {
 	return nil
 }
 
