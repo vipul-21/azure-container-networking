@@ -286,7 +286,7 @@ func TestAddRemoveStaticArp(t *testing.T) {
 
 	linkInfo := LinkInfo{
 		Name:       ifName,
-		IpAddr:     ip,
+		IPAddr:     ip,
 		MacAddress: mac,
 	}
 
@@ -297,7 +297,7 @@ func TestAddRemoveStaticArp(t *testing.T) {
 
 	linkInfo = LinkInfo{
 		Name:       ifName,
-		IpAddr:     ip,
+		IPAddr:     ip,
 		MacAddress: mac,
 	}
 

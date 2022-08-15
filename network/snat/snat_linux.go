@@ -211,7 +211,7 @@ func (client *Client) AllowInboundFromHostToNC() error {
 	log.Printf("Adding static arp entry for ip %s mac %s", containerIP, snatContainerVeth.HardwareAddr.String())
 	linkInfo := netlink.LinkInfo{
 		Name:       SnatBridgeName,
-		IpAddr:     containerIP,
+		IPAddr:     containerIP,
 		MacAddress: snatContainerVeth.HardwareAddr,
 	}
 
@@ -238,7 +238,7 @@ func (client *Client) DeleteInboundFromHostToNC() error {
 	log.Printf("Removing static arp entry for ip %s ", containerIP)
 	linkInfo := netlink.LinkInfo{
 		Name:       SnatBridgeName,
-		IpAddr:     containerIP,
+		IPAddr:     containerIP,
 		MacAddress: nil,
 	}
 
@@ -302,7 +302,7 @@ func (client *Client) AllowInboundFromNCToHost() error {
 	log.Printf("Adding static arp entry for ip %s mac %s", containerIP, snatContainerVeth.HardwareAddr.String())
 	linkInfo := netlink.LinkInfo{
 		Name:       SnatBridgeName,
-		IpAddr:     containerIP,
+		IPAddr:     containerIP,
 		MacAddress: snatContainerVeth.HardwareAddr,
 	}
 
@@ -328,7 +328,7 @@ func (client *Client) DeleteInboundFromNCToHost() error {
 	log.Printf("Removing static arp entry for ip %s ", containerIP)
 	linkInfo := netlink.LinkInfo{
 		Name:       SnatBridgeName,
-		IpAddr:     containerIP,
+		IPAddr:     containerIP,
 		MacAddress: nil,
 	}
 
