@@ -18,7 +18,7 @@ type NetlinkInterface interface {
 	SetLinkAddress(ifName string, hwAddress net.HardwareAddr) error
 	SetLinkPromisc(ifName string, on bool) error
 	SetLinkHairpin(bridgeName string, on bool) error
-	SetOrRemoveLinkAddress(linkInfo LinkInfo, mode int, linkState int) error
+	SetOrRemoveLinkAddress(linkInfo LinkInfo, mode, linkState int) error
 	AddIPAddress(ifName string, ipAddress net.IP, ipNet *net.IPNet) error
 	DeleteIPAddress(ifName string, ipAddress net.IP, ipNet *net.IPNet) error
 	GetIPRoute(filter *Route) ([]*Route, error)
