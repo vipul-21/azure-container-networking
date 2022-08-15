@@ -52,7 +52,7 @@ type LinkInfo struct {
 	TxQLen      uint
 	ParentIndex int
 	MacAddress  net.HardwareAddr
-	IpAddr      net.IP
+	IPAddr      net.IP
 }
 
 func (linkInfo *LinkInfo) Info() *LinkInfo {
@@ -423,7 +423,7 @@ func (Netlink) SetLinkHairpin(bridgeName string, on bool) error {
 }
 
 // SetOrRemoveLinkAddress sets/removes static arp entry based on mode
-func (Netlink) SetOrRemoveLinkAddress(linkInfo LinkInfo, mode int, linkState int) error {
+func (Netlink) SetOrRemoveLinkAddress(linkInfo LinkInfo, mode, linkState int) error {
 	s, err := getSocket()
 	if err != nil {
 		return err
@@ -444,16 +444,16 @@ func (Netlink) SetOrRemoveLinkAddress(linkInfo LinkInfo, mode int, linkState int
 	}
 
 	msg := neighMsg{
-		Family: uint8(GetIPAddressFamily(linkInfo.IpAddr)),
+		Family: uint8(GetIPAddressFamily(linkInfo.IPAddr)),
 		Index:  uint32(iface.Index),
 		State:  uint16(state),
 	}
 
 	req.addPayload(&msg)
 
-	ipData := linkInfo.IpAddr.To4()
+	ipData := linkInfo.IPAddr.To4()
 	if ipData == nil {
-		ipData = linkInfo.IpAddr.To16()
+		ipData = linkInfo.IPAddr.To16()
 	}
 
 	dstData := newRtAttr(NDA_DST, ipData)
