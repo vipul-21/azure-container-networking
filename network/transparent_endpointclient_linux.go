@@ -254,7 +254,7 @@ func (client *TransparentEndpointClient) ConfigureContainerInterfacesAndRoutes(e
 		virtualGwNet.String(), client.hostVethMac)
 	linkInfo := netlink.LinkInfo{
 		Name:       client.containerVethName,
-		IpAddr:     virtualGwNet.IP,
+		IPAddr:     virtualGwNet.IP,
 		MacAddress: client.hostVethMac,
 	}
 
@@ -302,7 +302,7 @@ func (client *TransparentEndpointClient) setIPV6NeighEntry() error {
 	hostGwIP, _, _ := net.ParseCIDR(virtualv6GwString)
 	linkInfo := netlink.LinkInfo{
 		Name:       client.containerVethName,
-		IpAddr:     hostGwIP,
+		IPAddr:     hostGwIP,
 		MacAddress: client.hostVethMac,
 	}
 

@@ -100,7 +100,7 @@ func (client *LinuxBridgeEndpointClient) AddEndpointRules(epInfo *EndpointInfo) 
 			log.Printf("[net] Adding static arp for IP address %v and MAC %v in VM", ipAddr.String(), client.containerMac.String())
 			linkInfo := netlink.LinkInfo{
 				Name:       client.bridgeName,
-				IpAddr:     ipAddr.IP,
+				IPAddr:     ipAddr.IP,
 				MacAddress: client.containerMac,
 			}
 
@@ -144,7 +144,7 @@ func (client *LinuxBridgeEndpointClient) DeleteEndpointRules(ep *endpoint) {
 			log.Printf("[net] Removing static arp for IP address %v and MAC %v from VM", ipAddr.String(), ep.MacAddress.String())
 			linkInfo := netlink.LinkInfo{
 				Name:       client.bridgeName,
-				IpAddr:     ipAddr.IP,
+				IPAddr:     ipAddr.IP,
 				MacAddress: ep.MacAddress,
 			}
 			err := client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.REMOVE, netlink.NUD_INCOMPLETE)
@@ -303,7 +303,7 @@ func (client *LinuxBridgeEndpointClient) setIPV6NeighEntry(epInfo *EndpointInfo)
 		hostGwIp := net.ParseIP(defaultV6HostGw)
 		linkInfo := netlink.LinkInfo{
 			Name:       client.containerVethName,
-			IpAddr:     hostGwIp,
+			IPAddr:     hostGwIp,
 			MacAddress: hardwareAddr,
 		}
 		if err := client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PERMANENT); err != nil {

@@ -404,9 +404,8 @@ func (client *TransparentVlanEndpointClient) AddDefaultArp(interfaceName, destMa
 		return errors.Wrap(err, "unable to parse mac")
 	}
 	linkInfo := netlink.LinkInfo{
-
 		Name:       interfaceName,
-		IpAddr:     virtualGwNet.IP,
+		IPAddr:     virtualGwNet.IP,
 		MacAddress: hardwareAddr,
 	}
 
