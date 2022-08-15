@@ -290,7 +290,7 @@ func TestAddRemoveStaticArp(t *testing.T) {
 		MacAddress: mac,
 	}
 
-	err = nl.SetOrRemoveLinkAddress(linkInfo, ADD, NUD_PROBE)
+	err = nl.SetOrRemoveLinkAddress(linkInfo, ADD, NUD_PERMANENT)
 	if err != nil {
 		t.Errorf("ret val %v", err)
 	}

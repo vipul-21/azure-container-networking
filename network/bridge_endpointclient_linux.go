@@ -60,7 +60,7 @@ func NewLinuxBridgeEndpointClient(
 }
 
 func (client *LinuxBridgeEndpointClient) AddEndpoints(epInfo *EndpointInfo) error {
-	if err := client.nuc.CreateEndpoint(client.hostVethName, client.containerVethName); err != nil {
+	if err := client.nuc.CreateEndpoint(client.hostVethName, client.containerVethName, nil); err != nil {
 		return err
 	}
 
@@ -104,7 +104,7 @@ func (client *LinuxBridgeEndpointClient) AddEndpointRules(epInfo *EndpointInfo) 
 				MacAddress: client.containerMac,
 			}
 
-			if err := client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PROBE); err != nil {
+			if err := client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PERMANENT); err != nil {
 				log.Printf("Failed setting arp in vm: %v", err)
 			}
 		}
@@ -306,7 +306,7 @@ func (client *LinuxBridgeEndpointClient) setIPV6NeighEntry(epInfo *EndpointInfo)
 			IpAddr:     hostGwIp,
 			MacAddress: hardwareAddr,
 		}
-		if err := client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PROBE); err != nil {
+		if err := client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PERMANENT); err != nil {
 			log.Printf("Failed setting neigh entry in container: %v", err)
 			return err
 		}

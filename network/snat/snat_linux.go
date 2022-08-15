@@ -95,7 +95,7 @@ func (client *Client) CreateSnatEndpoint() error {
 
 	epc := networkutils.NewNetworkUtils(client.netlink, client.plClient)
 	// Create veth pair to tie one end to container and other end to linux bridge
-	if err := epc.CreateEndpoint(client.hostSnatVethName, client.containerSnatVethName); err != nil {
+	if err := epc.CreateEndpoint(client.hostSnatVethName, client.containerSnatVethName, nil); err != nil {
 		log.Printf("Creating Snat Endpoint failed with error %v", err)
 		return newErrorSnatClient(err.Error())
 	}
@@ -215,7 +215,7 @@ func (client *Client) AllowInboundFromHostToNC() error {
 		MacAddress: snatContainerVeth.HardwareAddr,
 	}
 
-	err = client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PROBE)
+	err = client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PERMANENT)
 	if err != nil {
 		log.Printf("AllowInboundFromHostToNC: Error adding static arp entry for ip %s mac %s: %v", containerIP, snatContainerVeth.HardwareAddr.String(), err)
 		return newErrorSnatClient(err.Error())
@@ -306,7 +306,7 @@ func (client *Client) AllowInboundFromNCToHost() error {
 		MacAddress: snatContainerVeth.HardwareAddr,
 	}
 
-	err = client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PROBE)
+	err = client.netlink.SetOrRemoveLinkAddress(linkInfo, netlink.ADD, netlink.NUD_PERMANENT)
 	if err != nil {
 		log.Printf("AllowInboundFromNCToHost: Error adding static arp entry for ip %s mac %s: %v", containerIP, snatContainerVeth.HardwareAddr.String(), err)
 	}
