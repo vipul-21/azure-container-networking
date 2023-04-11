@@ -23,6 +23,7 @@ var (
 			NetworkName: "azure",
 		},
 		PolicyManagerCfg: &policies.PolicyManagerCfg{
+			NodeIP:               "6.7.8.9",
 			PolicyMode:           policies.IPSetPolicyMode,
 			PlaceAzureChainFirst: util.PlaceAzureChainFirst,
 		},
