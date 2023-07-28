@@ -11,6 +11,8 @@ parameters:
 
 stages:
   - stage: createAKSclusterWindows
+    pool:
+      name: $(BUILD_POOL_NAME_DEFAULT)
     dependsOn: ${{ parameters.dependsOn }}
     displayName: "Windows AKS Cluster ${{ parameters.cni }}"
     jobs:
@@ -24,6 +26,8 @@ stages:
               vmSize: ${{ parameters.vmSize }}
               windowsVMSize: ${{ parameters.windowsVMSize }}
   - stage: build_images
+    pool:
+      name: $(BUILD_POOL_NAME_DEFAULT)
     dependsOn: ${{ parameters.dependsOn }}
     displayName: "Build CNI Images"
     jobs:
@@ -45,7 +49,9 @@ stages:
               os: $(os)
               os_version: $(os_version)
   - stage:  update_cni
-    dependsOn: 
+    pool:
+      name: $(BUILD_POOL_NAME_DEFAULT)
+    dependsOn:
       - createAKSclusterWindows
       - build_images
     displayName: "Update CNI on Cluster"
@@ -80,8 +86,27 @@ stages:
               kubectl get pods -A
             name: "WaitForCNI"
             displayName: "Wait For CNI"
-  - stage: pod_deployment_windows
+  - stage: datapath_tests
+    pool:
+      name: $(BUILD_POOL_NAME_DEFAULT)
     dependsOn: update_cni
+    displayName: "Datapath Test - Windows"
+    jobs:
+      - template: ../k8s-e2e/k8s-e2e-job-template.yaml
+        parameters:
+          sub: $(TEST_SUB_SERVICE_CONNECTION)
+          clusterName: ${{ parameters.clusterName }}
+          os: ${{ parameters.os }}
+          datapath: true
+          dns: true
+          portforward: true
+          hybridWin: true
+          service: true
+          hostport: true
+  - stage: pod_deployment_windows
+    pool:
+      name: $(BUILD_POOL_NAME_DEFAULT)
+    dependsOn: datapath_tests
     displayName: "Pod Deployment"
     jobs:
       - job: deploy_pods
@@ -94,6 +119,8 @@ stages:
               cni: ${{ parameters.cni }}
               iterations: ${WINDOWS_ITERATIONS}
   - stage: validate_state_windows
+    pool:
+      name: $(BUILD_POOL_NAME_DEFAULT)
     dependsOn: pod_deployment_windows
     displayName: "Validate State"
     jobs:
@@ -105,6 +132,8 @@ stages:
               os: ${{ parameters.os }}
               cni: ${{ parameters.cni }}
   - stage: delete_resources
+    pool:
+      name: $(BUILD_POOL_NAME_DEFAULT)
     displayName: "Delete Resources"
     dependsOn:
       - validate_state_windows
