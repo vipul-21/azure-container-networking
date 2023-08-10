@@ -33,7 +33,7 @@ stages:
     dependsOn: ${{ parameters.dependsOn }}
     displayName: "Build CNI Images"
     jobs:
-      - job: build_cni_images
+      - job: build_images
         pool:
           name: "$(BUILD_POOL_NAME_LINUX_AMD64)"
         strategy:
@@ -43,6 +43,11 @@ stages:
               name: cni-dropgz-test
               os: windows
               os_version: ltsc2022
+            npm_windows2022_amd64:
+              arch: amd64
+              name: npm
+              os: windows
+              os_version: ltsc2022
         steps:
           - template: ../../containers/container-template.yaml
             parameters:
@@ -50,10 +55,30 @@ stages:
               name: $(name)
               os: $(os)
               os_version: $(os_version)
+
+  - stage: binaries
+    displayName: Build Binaries
+    dependsOn: ${{ parameters.dependsOn }}
+    jobs:
+      - job:
+        displayName: "Build Kubernetes Test Suite Binary"
+        pool:
+          name: $(BUILD_POOL_NAME_DEFAULT)
+        steps:
+          - bash: |
+              git clone https://github.com/huntergregory/kubernetes.git --depth=1 --branch=linux-sleep-before-probing
+              cd kubernetes
+              export PATH=$PATH:/usr/local/go/bin/
+              make WHAT=test/e2e/e2e.test
+            displayName: "Build Kubernetes e2e.test"
+          - publish: $(System.DefaultWorkingDirectory)/kubernetes/_output/local/bin/linux/amd64
+            artifact: npm_k8s
+
   - stage:  update_cni
     dependsOn:
       - createAKSclusterWindows
       - build_images
+      - binaries
     displayName: "Update CNI on Cluster"
     jobs:
       - job: deploy_pods
@@ -137,12 +162,29 @@ stages:
               clusterName: ${{ parameters.clusterName }}
               os: ${{ parameters.os }}
               cni: ${{ parameters.cni }}
+
+  - stage: npm
+    dependsOn:
+      - validate_state_windows
+      - setup
+    displayName: NPM|CNI Release Test
+    variables:
+      npmVersion: $[ stagedependencies.setup.env.outputs['SetEnvVars.npmVersion'] ]
+    jobs:
+      - template: ../../npm/npm-cni-integration-test.yaml
+        parameters:
+          clusterName: ${{ parameters.clusterName }}
+          os: ${{ parameters.os }}
+          sub: $(TEST_SUB_SERVICE_CONNECTION)
+          os_version: 'ltsc2022'
+          tag: $(npmVersion)
+
   - stage: delete_resources
     pool:
       name: $(BUILD_POOL_NAME_DEFAULT)
     displayName: "Delete Resources"
     dependsOn:
-      - validate_state_windows
+      - npm
     jobs:
       - job: delete_resources
         pool:

@@ -12,6 +12,7 @@ stages:
         steps:
           - script: |
               echo "Setting up environment"
+              echo "##vso[task.setvariable variable=npmVersion;isOutput=true]$(make npm-version)"
               go version
             name: "SetEnvVars"
             displayName: "Set Environment Variables"
@@ -30,7 +31,7 @@ stages:
       clusterType: "windows-cniv1-up"
       clusterName: "win-cniv1"
       nodeCount: 2
-      vmSize: "Standard_B2s"
+      vmSize: Standard_B2ms
       dependsOn: setup
       windowsVMSize: ${WINDOWS_VM_SKU}
       os: windows
