@@ -101,6 +101,7 @@ func azureVnetIps(result []byte) (map[string]string, error) {
 		for _, v := range v.Networks {
 			for _, e := range v.Endpoints {
 				for _, v := range e.IPAddresses {
+					// collect both ipv4 and ipv6 addresses
 					azureVnetPodIps[v.IP.String()] = e.IfName
 				}
 			}

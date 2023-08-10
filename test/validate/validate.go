@@ -6,6 +6,7 @@ import (
 
 	k8sutils "github.com/Azure/azure-container-networking/test/internal/k8sutils"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -170,5 +171,55 @@ func (v *Validator) validateIPs(ctx context.Context, stateFileIps stateFileIpsFu
 		}
 	}
 	log.Printf("State file validation for %s passed", checkType)
+	return nil
+}
+
+func (v *Validator) validateDualStackNodeProperties(ctx context.Context) error {
+	log.Print("Validating Dualstack Overlay Node properties")
+	nodes, err := k8sutils.GetNodeListByLabelSelector(ctx, v.clientset, nodeSelectorMap[v.os])
+	if err != nil {
+		return errors.Wrapf(err, "failed to get node list")
+	}
+
+	for index := range nodes.Items {
+		nodeName := nodes.Items[index].ObjectMeta.Name
+		// check nodes status;
+		// nodes status should be ready after cluster is created
+		nodeConditions := nodes.Items[index].Status.Conditions
+		if nodeConditions[len(nodeConditions)-1].Type != corev1.NodeReady {
+			return errors.Wrapf(err, "node %s status is not ready", nodeName)
+		}
+
+		// get node labels
+		nodeLabels := nodes.Items[index].ObjectMeta.GetLabels()
+		for key := range nodeLabels {
+			if label, ok := dualstackOverlayNodeLabels[key]; ok {
+				log.Printf("label %s is correctly shown on the node %+v", key, nodeName)
+				if label != overlayClusterLabelName {
+					return errors.Wrapf(err, "node %s overlay label name is wrong; expected label:%s but actual label:%s", nodeName, overlayClusterLabelName, label)
+				}
+			}
+		}
+
+		// check if node has two internal IPs(one is IPv4 and another is IPv6)
+		internalIPCount := 0
+		for _, address := range nodes.Items[index].Status.Addresses {
+			if address.Type == "InternalIP" {
+				internalIPCount++
+			}
+		}
+		if internalIPCount != 2 { //nolint
+			return errors.Wrap(err, "node does not have two internal IPs")
+		}
+	}
+
+	return nil
+}
+
+func (v *Validator) ValidateDualStackControlPlane(ctx context.Context) error {
+	if err := v.validateDualStackNodeProperties(ctx); err != nil {
+		return errors.Wrap(err, "failed to validate dualstack overlay node properties")
+	}
+
 	return nil
 }
