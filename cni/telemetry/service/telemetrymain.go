@@ -29,7 +29,6 @@ const (
 	configExtension                   = ".config"
 	maxLogFileSizeInMb                = 5
 	maxLogFileCount                   = 8
-	component                         = "cni"
 )
 
 var version string
@@ -106,7 +105,6 @@ func main() {
 	var config telemetry.TelemetryConfig
 	var configPath string
 	var err error
-	ctx, cancel := context.WithCancel(context.Background())
 
 	acn.ParseArgs(&args, printVersion)
 	logLevel := acn.GetArg(acn.OptLogLevel).(zapcore.Level)
@@ -118,17 +116,10 @@ func main() {
 		os.Exit(0)
 	}
 
-	loggerCfg := &log.Config{
-		Level:       logLevel,
-		LogPath:     log.LogPath + azureVnetTelemetry + ".log",
-		MaxSizeInMB: maxLogFileSizeInMb,
-		MaxBackups:  maxLogFileCount,
-		Name:        azureVnetTelemetry,
-		Component:   component,
-	}
-	log.Initialize(ctx, loggerCfg)
+	log.LoggerCfg.Level = logLevel
+	logger := log.InitZapLogCNI(azureVnetTelemetry, azureVnetTelemetry+".log")
 
-	log.Logger.Info("Telemetry invocation info", zap.Any("arguments", os.Args))
+	logger.Info("Telemetry invocation info", zap.Any("arguments", os.Args))
 
 	if runtime.GOOS == "linux" {
 		configPath = fmt.Sprintf("%s/%s%s", configDirectory, azureVnetTelemetry, configExtension)
@@ -136,18 +127,18 @@ func main() {
 		configPath = fmt.Sprintf("%s\\%s%s", configDirectory, azureVnetTelemetry, configExtension)
 	}
 
-	log.Logger.Info("Config path", zap.String("path", configPath))
+	logger.Info("Config path", zap.String("path", configPath))
 
 	config, err = telemetry.ReadConfigFile(configPath)
 	if err != nil {
-		log.Logger.Error("Error reading telemetry config", zap.Error(err))
+		logger.Error("Error reading telemetry config", zap.Error(err))
 	}
 
-	log.Logger.Info("read config returned", zap.Any("config", config))
+	logger.Info("read config returned", zap.Any("config", config))
 
 	setTelemetryDefaults(&config)
 
-	log.Logger.Info("Config after setting defaults", zap.Any("config", config))
+	logger.Info("Config after setting defaults", zap.Any("config", config))
 
 	// Cleaning up orphan socket if present
 	tbtemp := telemetry.NewTelemetryBuffer()
@@ -156,13 +147,13 @@ func main() {
 	for {
 		tb = telemetry.NewTelemetryBuffer()
 
-		log.Logger.Info("Starting telemetry server")
+		logger.Info("Starting telemetry server")
 		err = tb.StartServer()
 		if err == nil || tb.FdExists {
 			break
 		}
 
-		log.Logger.Error("Telemetry service starting failed", zap.Error(err))
+		logger.Error("Telemetry service starting failed", zap.Error(err))
 		tb.Cleanup(telemetry.FdName)
 		time.Sleep(time.Millisecond * 200)
 	}
@@ -180,11 +171,10 @@ func main() {
 	}
 
 	if telemetry.CreateAITelemetryHandle(aiConfig, config.DisableAll, config.DisableTrace, config.DisableMetric) != nil {
-		log.Logger.Error("[Telemetry] AI Handle creation error", zap.Error(err))
+		logger.Error("[Telemetry] AI Handle creation error", zap.Error(err))
 	}
-	log.Logger.Info("[Telemetry] Report to host interval", zap.Duration("seconds", config.ReportToHostIntervalInSeconds))
+	logger.Info("[Telemetry] Report to host interval", zap.Duration("seconds", config.ReportToHostIntervalInSeconds))
 	tb.PushData(context.Background())
 	telemetry.CloseAITelemetryHandle()
 
-	cancel()
 }
