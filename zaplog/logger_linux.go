@@ -1,6 +1,6 @@
-package log
+package zaplog
 
 const (
 	// LogPath is the path where log files are stored.
-	LogPath = ""
+	LogPath = "/var/log/"
 )
