@@ -13,7 +13,6 @@ import (
 	"github.com/Azure/azure-container-networking/cni/log"
 	acn "github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/telemetry"
-	"github.com/Azure/azure-container-networking/zaplog"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -108,7 +107,6 @@ func main() {
 	var err error
 
 	acn.ParseArgs(&args, printVersion)
-	logLevel := acn.GetArg(acn.OptLogLevel).(zapcore.Level)
 	configDirectory := acn.GetArg(acn.OptTelemetryConfigDir).(string)
 	vers := acn.GetArg(acn.OptVersion).(bool)
 
@@ -117,8 +115,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	zaplog.LoggerCfg.Level = logLevel
-	logger := log.InitZapLogCNI(azureVnetTelemetry, azureVnetTelemetry+".log")
+	logger := log.TelemetryLogger.With(zap.String("component", "cni-telemetry"))
 
 	logger.Info("Telemetry invocation info", zap.Any("arguments", os.Args))
 
@@ -177,5 +174,4 @@ func main() {
 	logger.Info("[Telemetry] Report to host interval", zap.Duration("seconds", config.ReportToHostIntervalInSeconds))
 	tb.PushData(context.Background())
 	telemetry.CloseAITelemetryHandle()
-
 }
