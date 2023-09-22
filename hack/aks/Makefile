@@ -204,15 +204,7 @@ windows-cniv1-up: rg-up overlay-net-up ## Bring up a Windows CNIv1 cluster
 		--no-ssh-key \
 		--yes
 
-	$(AZCLI) aks nodepool add --resource-group $(GROUP) --cluster-name $(CLUSTER) \
-		--os-type Windows \
-		--os-sku $(WINDOWS_OS_SKU) \
-		--max-pods 250 \
-		--name npwin \
-		--node-count $(NODE_COUNT) \
-		-s $(WINDOWS_VM_SKU)
-
-	@$(MAKE) set-kubeconf
+	@$(MAKE) windows-nodepool-up
 
 linux-cniv1-up: rg-up overlay-net-up ## Bring up a Linux CNIv1 cluster
 	$(AZCLI) aks create -n $(CLUSTER) -g $(GROUP) -l $(REGION) \
@@ -254,6 +246,17 @@ dualstack-overlay-byocni-up: rg-up overlay-net-up ## Brings up an dualstack Over
 		--aks-custom-headers AKSHTTPCustomFeatures=Microsoft.ContainerService/AzureOverlayDualStackPreview \
 		--no-ssh-key \
 		--yes
+	@$(MAKE) set-kubeconf
+
+windows-nodepool-up: ## Add windows node pool
+	$(AZCLI) aks nodepool add -g $(GROUP) -n npwin \
+		--node-count $(NODE_COUNT) \
+		--node-vm-size $(VM_SIZE) \
+		--cluster-name  $(CLUSTER) \
+		--os-type Windows \
+		--os-sku $(WINDOWS_OS_SKU) \
+		--max-pods 250 \
+		--subscription $(SUB)
 	@$(MAKE) set-kubeconf
 
 down: ## Delete the cluster

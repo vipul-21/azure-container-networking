@@ -70,8 +70,6 @@ stages:
             artifact: npm_k8s
       - job:
         displayName: "Build k8s NPM Windows Test Suite Binary"
-        pool:
-          name: $(BUILD_POOL_NAME_DEFAULT)
         steps:
           - bash: |
               git clone https://github.com/huntergregory/kubernetes.git --depth=1 --branch=sleep-before-probing
@@ -109,18 +107,33 @@ stages:
       clusterType: overlay-byocni-nokubeproxy-up
       clusterName: "cilium-overlay"
       nodeCount: ${CILIUM_NODE_COUNT}
-      vmSize: "Standard_DS4_v2"
+      vmSize: ${CILIUM_VM_SKU}
 
-  - template: singletenancy/windows-cni-load-test-template.yaml
+  - template: singletenancy/cniv1-template.yaml
     parameters:
-      name: win_cniv1
-      clusterType: "windows-cniv1-up"
-      clusterName: "win-cniv1"
+      name: win22_cniv1
+      clusterType: windows-cniv1-up
+      clusterName: win22-cniv1
       nodeCount: ${WINDOWS_NODE_COUNT}
-      vmSize: Standard_DS4_v2
+      vmSize: ${WINDOWS_LINUX_VM_SKU}
       windowsVMSize: ${WINDOWS_VM_SKU}
-      arch: amd64
+      os: windows
       os_version: 'ltsc2022'
+      arch: amd64
+      scaleup: ${WINDOWS_SCALEUP}
+      iterations: ${WINDOWS_ITERATIONS}
+
+  - template: singletenancy/cniv1-template.yaml
+    parameters:
+      name: linux_cniv1
+      clusterType: linux-cniv1-up
+      clusterName: linux-cniv1
+      nodeCount: ${LINUX_NODE_COUNT}
+      vmSize: ${LINUX_VM_SKU}
+      os: linux
+      arch: amd64
+      scaleup: ${LINUX_SCALEUP}
+      iterations: ${LINUX_ITERATIONS}
 
   - template: singletenancy/linux-cniv2-template.yaml
     parameters:
@@ -128,7 +141,7 @@ stages:
       clusterType: swift-byocni-up
       clusterName: linux-cniv2-podsubnet
       nodeCount: ${LINUX_NODE_COUNT}
-      vmSize: Standard_DS4_v2
+      vmSize: ${LINUX_VM_SKU}
       arch: amd64
 
   - template: singletenancy/linux-cniv2-template.yaml
@@ -137,7 +150,7 @@ stages:
       clusterType: overlay-byocni-up
       clusterName: linux-cniv2-overlay
       nodeCount: ${LINUX_NODE_COUNT}
-      vmSize: Standard_DS4_v2
+      vmSize: ${LINUX_VM_SKU}
       arch: amd64
 
   - stage: delete_resources
@@ -147,7 +160,8 @@ stages:
     condition: always()
     dependsOn:
       - cilium_overlay
-      - win_cniv1
+      - win22_cniv1
+      - linux_cniv1
       - linux_podsubnet
       - linux_overlay
       - setup
@@ -166,6 +180,9 @@ stages:
             win_cniv1:
               name: win_cniv1
               clusterName: win-cniv1
+            linux_cniv1:
+              name: linux_cniv1
+              clusterName: linux-cniv1
             linux_podsubnet:
               name: linux_podsubnet
               clusterName: linux-cniv2-podsubnet
