@@ -1,11 +1,14 @@
-//go:build integration
+//go:build load
 
-package k8s
+package load
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"runtime/debug"
 	"strconv"
 	"testing"
@@ -20,6 +23,8 @@ const (
 	logDir = "logs/"
 )
 
+var ErrInvalidVariableType = errors.New("variable type not supported")
+
 func TestMain(m *testing.M) {
 	var (
 		err        error
@@ -27,6 +32,8 @@ func TestMain(m *testing.M) {
 		cnicleanup func() error
 		cnscleanup func() error
 	)
+
+	LoadEnvironment(testConfig)
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -68,4 +75,41 @@ func TestMain(m *testing.M) {
 	}
 
 	exitCode = m.Run()
+}
+
+func LoadEnvironment(obj interface{}) {
+	val := reflect.ValueOf(obj).Elem()
+	typ := reflect.TypeOf(obj).Elem()
+
+	for i := 0; i < val.NumField(); i++ {
+		fieldVal := val.Field(i)
+		fieldTyp := typ.Field(i)
+
+		env := fieldTyp.Tag.Get("env")
+		defaultVal := fieldTyp.Tag.Get("default")
+		envVal := os.Getenv(env)
+
+		if envVal == "" {
+			envVal = defaultVal
+		}
+
+		switch fieldVal.Kind() {
+		case reflect.Int:
+			intVal, err := strconv.Atoi(envVal)
+			if err != nil {
+				panic(fmt.Sprintf("environment variable %q must be an integer", env))
+			}
+			fieldVal.SetInt(int64(intVal))
+		case reflect.String:
+			fieldVal.SetString(envVal)
+		case reflect.Bool:
+			boolVal, err := strconv.ParseBool(envVal)
+			if err != nil {
+				panic(fmt.Sprintf("environment variable %s must be a bool", env))
+			}
+			fieldVal.SetBool(boolVal)
+		default:
+			panic(ErrInvalidVariableType)
+		}
+	}
 }
