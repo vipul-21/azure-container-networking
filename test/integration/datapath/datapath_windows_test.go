@@ -10,6 +10,7 @@ import (
 
 	"github.com/Azure/azure-container-networking/test/internal/datapath"
 	"github.com/Azure/azure-container-networking/test/internal/kubernetes"
+	"github.com/Azure/azure-container-networking/test/validate"
 	"github.com/stretchr/testify/require"
 	apiv1 "k8s.io/api/core/v1"
 )
@@ -25,6 +26,7 @@ var (
 	podPrefix        = flag.String("podName", "datapod", "Prefix for test pods")
 	podNamespace     = flag.String("namespace", "windows-datapath-test", "Namespace for test pods")
 	nodepoolSelector = flag.String("nodepoolSelector", "npwin", "Provides nodepool as a windows Node-Selector for pods")
+	restartKubeproxy = flag.Bool("restartKubeproxy", false, "restarts kubeproxy on the windows node")
 )
 
 /*
@@ -48,10 +50,20 @@ Timeout context is controled by the -timeout flag.
 func setupWindowsEnvironment(t *testing.T) {
 	ctx := context.Background()
 
+	t.Log("Get REST config")
+	restConfig := kubernetes.MustGetRestConfig(t)
+
 	t.Log("Create Clientset")
 	clientset, err := kubernetes.MustGetClientset()
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if *restartKubeproxy {
+		validator, err := validate.CreateValidator(ctx, clientset, restConfig, *podNamespace, "cniv2", false, "windows")
+		require.NoError(t, err)
+		err = validator.RestartKubeProxyService(ctx)
+		require.NoError(t, err)
 	}
 
 	t.Log("Create Label Selectors")
