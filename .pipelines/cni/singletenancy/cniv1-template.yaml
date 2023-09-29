@@ -11,6 +11,7 @@ parameters:
   scaleup: 100
   iterations: 3
   os_version: ""
+  osSKU: Ubuntu
 
 # CNIv1
 # + Should be able to scale up/down the pods successfully certain number of times.
@@ -42,6 +43,7 @@ stages:
               vmSize: ${{ parameters.vmSize }}
               vmSizeWin: ${{ parameters.vmSizeWin }}
               region: $(LOCATION)
+              osSKU: ${{ parameters.osSKU }}
 
   - stage: ${{ parameters.name }}
     variables:

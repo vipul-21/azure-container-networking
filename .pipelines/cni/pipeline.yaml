@@ -47,6 +47,22 @@ stages:
               name: $(name)
               os: $(os)
               os_version: $(os_version)
+      - job: containerize_linux_arm64
+        displayName: Build Images
+        pool:
+          name: "$(BUILD_POOL_NAME_LINUX_ARM64)"
+        strategy:
+          matrix:
+            cni_dropgz_test_linux_arm64:
+              arch: arm64
+              name: cni-dropgz-test
+              os: linux
+        steps:
+          - template: ../containers/container-template.yaml
+            parameters:
+              arch: $(arch)
+              name: $(name)
+              os: $(os)
 
   - stage: binaries
     displayName: Build Binaries
@@ -93,7 +109,7 @@ stages:
           matrix:
             cni_dropgz_test:
               name: cni-dropgz-test
-              platforms: linux/amd64 windows/amd64
+              platforms: linux/amd64 linux/arm64 windows/amd64
         steps:
           - template: ../containers/manifest-template.yaml
             parameters:
@@ -153,6 +169,34 @@ stages:
       vmSize: ${VM_SIZE}
       arch: amd64
 
+  - template: singletenancy/linux-cniv2-template.yaml
+    parameters:
+      name: mariner_linux_overlay
+      clusterType: overlay-byocni-up
+      clusterName: mariner-cniv2-overlay
+      nodeCount: ${NODE_COUNT_LINUX}
+      vmSize:  ${VM_SIZE}
+      arch: amd64
+      osSKU: AzureLinux
+
+  - template: singletenancy/linux-cniv2-template.yaml
+    parameters:
+      name: arm_linux_overlay
+      clusterType: overlay-byocni-up
+      clusterName: arm-cniv2-overlay
+      nodeCount: ${NODE_COUNT_LINUX}
+      vmSize: Standard_D8ps_v5
+      arch: arm64
+
+  - template: singletenancy/linux-cniv2-template.yaml
+    parameters:
+      name: rdma_linux_overlay
+      clusterType: overlay-byocni-up
+      clusterName: rdma-cniv2-overlay
+      nodeCount: 2
+      vmSize: Standard_NC24r
+      arch: amd64
+
   - stage: delete_resources
     displayName: "Delete Resources"
     pool:
@@ -164,6 +208,9 @@ stages:
       - linux_cniv1
       - linux_podsubnet
       - linux_overlay
+      - mariner_linux_overlay
+      - arm_linux_overlay
+      - rdma_linux_overlay
       - setup
     variables:
       commitID: $[ stagedependencies.setup.env.outputs['SetEnvVars.commitID'] ]
@@ -189,6 +236,15 @@ stages:
             linux_overlay:
               name: linux_overlay
               clusterName: linux-cniv2-overlay
+            mariner_linux_overlay:
+              name: mariner_linux_overlay
+              clusterName: mariner-cniv2-overlay
+            arm_linux_overlay:
+              name: arm_linux_overlay
+              clusterName: arm-cniv2-overlay
+            rdma_linux_overlay:
+              name: rdma_linux_overlay
+              clusterName: rdma-cniv2-overlay
         steps:
           - task: AzureCLI@1
             inputs:
