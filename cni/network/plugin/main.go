@@ -157,6 +157,7 @@ func rootExecute() error {
 			InterfaceDetails: telemetry.InterfaceInfo{},
 			BridgeDetails:    telemetry.BridgeInfo{},
 			Version:          version,
+			Logger:           logger,
 		},
 	}
 
@@ -182,7 +183,8 @@ func rootExecute() error {
 		cniReport.GetReport(pluginName, version, ipamQueryURL)
 
 		var upTime time.Time
-		upTime, err = platform.GetLastRebootTime()
+		p := platform.NewExecClient(logger)
+		upTime, err = p.GetLastRebootTime()
 		if err == nil {
 			cniReport.VMUptime = upTime.Format("2006-01-02 15:04:05")
 		}
