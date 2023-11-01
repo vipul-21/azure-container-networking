@@ -27,8 +27,18 @@ type IPAMAddConfig struct {
 }
 
 type IPAMAddResult struct {
-	ipv4Result       *cniTypesCurr.Result
-	ipv6Result       *cniTypesCurr.Result
+	// Splitting defaultInterfaceInfo from secondaryInterfacesInfo so we don't need to loop for default CNI result every time
+	defaultInterfaceInfo    InterfaceInfo
+	secondaryInterfacesInfo []InterfaceInfo
+	// ncResponse is used for Swift 1.0 multitenancy
 	ncResponse       *cns.GetNetworkContainerResponse
 	hostSubnetPrefix net.IPNet
+	ipv6Enabled      bool
+}
+
+type InterfaceInfo struct {
+	ipResult          *cniTypesCurr.Result
+	nicType           cns.NICType
+	macAddress        net.HardwareAddr
+	skipDefaultRoutes bool
 }
