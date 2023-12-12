@@ -81,7 +81,8 @@ const (
 	name                              = "azure-cns"
 	pluginName                        = "azure-vnet"
 	endpointStoreName                 = "azure-endpoints"
-	endpointStoreLocation             = "/var/run/azure-cns/"
+	endpointStoreLocationLinux        = "/var/run/azure-cns/"
+	endpointStoreLocationWindows      = "/k/azurecns/"
 	defaultCNINetworkConfigFileName   = "10-azure.conflist"
 	dncApiVersion                     = "?api-version=2018-03-01"
 	poolIPAMRefreshRateInMilliseconds = 1000
@@ -113,6 +114,9 @@ var (
 
 // Version is populated by make during build.
 var version string
+
+// endpointStorePath is used to create the path for EdnpointState file.
+var endpointStorePath string
 
 // Command line arguments for CNS.
 var args = acn.ArgumentList{
@@ -335,6 +339,14 @@ func init() {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 
+	// Fill EndpointStatePath based on the platform
+	if endpointStorePath = os.Getenv("CNSStoreFilePath"); endpointStorePath == "" {
+		if runtime.GOOS == "windows" {
+			endpointStorePath = endpointStoreLocationWindows
+		} else {
+			endpointStorePath = endpointStoreLocationLinux
+		}
+	}
 	go func() {
 		// Wait until receiving a signal.
 		select {
@@ -443,6 +455,7 @@ func startTelemetryService(ctx context.Context) {
 	tbtemp.Cleanup(telemetry.FdName)
 
 	err = tb.StartServer()
+	log.Printf("Telemetry service for CNI started")
 	if err != nil {
 		log.Errorf("Telemetry service failed to start: %w", err)
 		return
@@ -620,8 +633,8 @@ func main() {
 			logger.InitAI(aiConfig, ts.DisableTrace, ts.DisableMetric, ts.DisableEvent)
 		}
 	}
-
 	if telemetryDaemonEnabled {
+		log.Printf("CNI Telemtry is enabled")
 		go startTelemetryService(rootCtx)
 	}
 
@@ -658,13 +671,14 @@ func main() {
 		}
 		defer endpointStoreLock.Unlock() // nolint
 
-		err = platform.CreateDirectory(endpointStoreLocation)
+		err = platform.CreateDirectory(endpointStorePath)
 		if err != nil {
 			logger.Errorf("Failed to create File Store directory %s, due to Error:%v", storeFileLocation, err.Error())
 			return
 		}
 		// Create the key value store.
-		storeFileName := endpointStoreLocation + endpointStoreName + ".json"
+		storeFileName := endpointStorePath + endpointStoreName + ".json"
+		logger.Printf("EndpointStoreState path is %s", storeFileName)
 		endpointStateStore, err = store.NewJsonFileStore(storeFileName, endpointStoreLock, nil)
 		if err != nil {
 			logger.Errorf("Failed to create endpoint state store file: %s, due to error %v\n", storeFileName, err)
