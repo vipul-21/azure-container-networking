@@ -140,6 +140,7 @@ func (nw *network) newEndpoint(
 	plc platform.ExecClient,
 	netioCli netio.NetIOInterface,
 	nsc NamespaceClientInterface,
+	iptc ipTablesClient,
 	epInfo []*EndpointInfo,
 ) (*endpoint, error) {
 	var ep *endpoint
@@ -153,7 +154,7 @@ func (nw *network) newEndpoint(
 
 	// Call the platform implementation.
 	// Pass nil for epClient and will be initialized in newendpointImpl
-	ep, err = nw.newEndpointImpl(apipaCli, nl, plc, netioCli, nil, nsc, epInfo)
+	ep, err = nw.newEndpointImpl(apipaCli, nl, plc, netioCli, nil, nsc, iptc, epInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +165,9 @@ func (nw *network) newEndpoint(
 }
 
 // DeleteEndpoint deletes an existing endpoint from the network.
-func (nw *network) deleteEndpoint(nl netlink.NetlinkInterface, plc platform.ExecClient, nioc netio.NetIOInterface, nsc NamespaceClientInterface, endpointID string) error {
+func (nw *network) deleteEndpoint(nl netlink.NetlinkInterface, plc platform.ExecClient, nioc netio.NetIOInterface, nsc NamespaceClientInterface,
+	iptc ipTablesClient, endpointID string,
+) error {
 	var err error
 
 	logger.Info("Deleting endpoint from network", zap.String("endpointID", endpointID), zap.String("id", nw.Id))
@@ -183,7 +186,7 @@ func (nw *network) deleteEndpoint(nl netlink.NetlinkInterface, plc platform.Exec
 
 	// Call the platform implementation.
 	// Pass nil for epClient and will be initialized in deleteEndpointImpl
-	err = nw.deleteEndpointImpl(nl, plc, nil, nioc, nsc, ep)
+	err = nw.deleteEndpointImpl(nl, plc, nil, nioc, nsc, iptc, ep)
 	if err != nil {
 		return err
 	}
