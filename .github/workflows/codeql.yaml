@@ -5,7 +5,7 @@ on:
     - master
     - release/*
   pull_request:
-    branches: 
+    branches:
     - master
     - release/*
     types:
@@ -14,8 +14,12 @@ on:
       - synchronize
       - ready_for_review
   workflow_dispatch:
+  merge_group:
+    types:
+      - checks_requested
 jobs:
   analyze:
+    if: ${{ github.event_name == 'pull_request' }}
     name: Analyze
     strategy:
       fail-fast: false
