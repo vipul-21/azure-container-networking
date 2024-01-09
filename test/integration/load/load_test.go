@@ -186,6 +186,13 @@ func TestValidCNSStateDuringScaleAndCNSRestartToTriggerDropgzInstall(t *testing.
 	deploymentsClient := clientset.AppsV1().Deployments(namespace)
 
 	if testConfig.Cleanup {
+		// Create namespace if it doesn't exist
+		namespaceExists, err := kubernetes.NamespaceExists(ctx, clientset, namespace)
+		require.NoError(t, err)
+		if !namespaceExists {
+			kubernetes.MustCreateNamespace(ctx, clientset, namespace)
+		}
+
 		// Create a deployment
 		kubernetes.MustCreateDeployment(ctx, deploymentsClient, deployment)
 	}
@@ -195,7 +202,7 @@ func TestValidCNSStateDuringScaleAndCNSRestartToTriggerDropgzInstall(t *testing.
 	kubernetes.MustScaleDeployment(ctx, deploymentsClient, deployment, clientset, namespace, podLabelSelector, testConfig.ScaleUpReplicas, skipWait)
 
 	// restart linux CNS (linux, windows)
-	err = kubernetes.RestartCNSDaemonset(ctx, clientset)
+	err = kubernetes.RestartCNSDaemonset(ctx, clientset, true)
 	require.NoError(t, err)
 
 	// wait for pods to settle before checking cns state (otherwise, race between getting pods in creating state, and getting CNS state file)
@@ -210,7 +217,7 @@ func TestValidCNSStateDuringScaleAndCNSRestartToTriggerDropgzInstall(t *testing.
 	kubernetes.MustScaleDeployment(ctx, deploymentsClient, deployment, clientset, namespace, podLabelSelector, testConfig.ScaleDownReplicas, skipWait)
 
 	// restart linux CNS (linux, windows)
-	err = kubernetes.RestartCNSDaemonset(ctx, clientset)
+	err = kubernetes.RestartCNSDaemonset(ctx, clientset, true)
 	require.NoError(t, err)
 
 	// wait for pods to settle before checking cns state (otherwise, race between getting pods in terminating state, and getting CNS state file)
