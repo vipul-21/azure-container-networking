@@ -130,6 +130,46 @@ func TestValidateState(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
+	if testConfig.ValidateStateFile {
+		deployment := kubernetes.MustParseDeployment(noopDeploymentMap[testConfig.OSType])
+		deploymentsClient := clientset.AppsV1().Deployments(namespace)
+
+		// Ensure pods exist on nodes to validate state files properly. Can obtain false positives without pods.
+		nodes, err := kubernetes.GetNodeListByLabelSelector(ctx, clientset, "kubernetes.io/os="+testConfig.OSType)
+		require.NoError(t, err)
+		nodeCount := len(nodes.Items)
+		replicas := int32(nodeCount) * 2
+
+		deploymentExists, err := kubernetes.DeploymentExists(ctx, deploymentsClient, deployment.Name)
+		require.NoError(t, err)
+		if !deploymentExists {
+			t.Logf("Test deployment %s does not exist! Create %v pods in %s namespace", deployment.Name, replicas, namespace)
+			// Create namespace if it doesn't exist
+			namespaceExists, err := kubernetes.NamespaceExists(ctx, clientset, namespace)
+			require.NoError(t, err)
+			if !namespaceExists {
+				kubernetes.MustCreateNamespace(ctx, clientset, namespace)
+			}
+
+			kubernetes.MustCreateDeployment(ctx, deploymentsClient, deployment)
+			kubernetes.MustScaleDeployment(ctx, deploymentsClient, deployment, clientset, namespace, podLabelSelector, int(replicas), false)
+		} else {
+			t.Log("Test deployment exists! Use existing setup")
+			replicas, err = kubernetes.GetDeploymentAvailableReplicas(ctx, deploymentsClient, deployment.Name) // If test namespace exists then use existing Replicas
+			if replicas != 0 && err != nil {
+				require.NoError(t, err)
+			}
+		}
+		if replicas < int32(nodeCount) {
+			t.Logf("Warning - current replica count %v is below current %s node count of %d. Raising replicas to minimum required to ensure there is a pod on every node.", replicas, testConfig.OSType, nodeCount)
+			replicas = int32(nodeCount * 2)
+			kubernetes.MustScaleDeployment(ctx, deploymentsClient, deployment, clientset, namespace, podLabelSelector, int(replicas), false)
+		}
+		t.Log("Ensure deployment is in ready status")
+		err = kubernetes.WaitForPodDeployment(ctx, clientset, namespace, deployment.Name, podLabelSelector, int(replicas))
+		require.NoError(t, err)
+	}
+
 	validator, err := validate.CreateValidator(ctx, clientset, config, namespace, testConfig.CNIType, testConfig.RestartCase, testConfig.OSType)
 	require.NoError(t, err)
 
@@ -182,10 +222,12 @@ func TestValidCNSStateDuringScaleAndCNSRestartToTriggerDropgzInstall(t *testing.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
-	validator, err := validate.CreateValidator(ctx, clientset, config, namespace, testConfig.CNIType, testConfig.RestartCase, testConfig.OSType)
-	require.NoError(t, err)
+	// Provide an option to validate state files with a proper environment before running test
+	if testConfig.ValidateStateFile {
+		t.Run("Validate state file", TestValidateState)
+	}
 
-	err = validator.Validate(ctx)
+	validator, err := validate.CreateValidator(ctx, clientset, config, namespace, testConfig.CNIType, testConfig.RestartCase, testConfig.OSType)
 	require.NoError(t, err)
 
 	deployment := kubernetes.MustParseDeployment(noopDeploymentMap[testConfig.OSType])
@@ -238,6 +280,7 @@ func TestValidCNSStateDuringScaleAndCNSRestartToTriggerDropgzInstall(t *testing.
 		kubernetes.MustDeleteDeployment(ctx, deploymentsClient, deployment)
 		err = kubernetes.WaitForPodsDelete(ctx, clientset, namespace, podLabelSelector)
 		require.NoError(t, err, "error waiting for pods to delete")
+		validator.Cleanup(ctx)
 	}
 }
 
@@ -258,6 +301,10 @@ func TestV4OverlayProperties(t *testing.T) {
 	t.Log("Validating v4Overlay node labels")
 	err = validator.ValidateV4OverlayControlPlane(ctx)
 	require.NoError(t, err)
+
+	if testConfig.Cleanup {
+		validator.Cleanup(ctx)
+	}
 }
 
 func TestDualStackProperties(t *testing.T) {
