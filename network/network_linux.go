@@ -289,12 +289,21 @@ func (nm *networkManager) addDNSServers(ifName string, dnsServers []string) (str
 		return osVersion, err
 	}
 
+	if len(dnsServers) == 0 {
+		logger.Warn("No dns servers to add")
+		return "", nil
+	}
+
 	var cmd string
 	switch {
 	case strings.HasPrefix(osVersion, Ubuntu22):
 		cmd = fmt.Sprintf("resolvectl dns %s %s", ifName, strings.Join(dnsServers, " "))
 	default:
-		cmd = fmt.Sprintf("systemd-resolve --interface %s %s", ifName, strings.Join(dnsServers, "--set-dns "))
+		serverList := ""
+		for _, server := range dnsServers {
+			serverList = serverList + " --set-dns " + server
+		}
+		cmd = fmt.Sprintf("systemd-resolve --interface %s %s", ifName, serverList)
 	}
 	return cmd, nil
 }
@@ -428,10 +437,11 @@ func (nm *networkManager) applyDNSConfig(extIf *externalInterface, ifName string
 			if err != nil {
 				return errors.Wrap(err, "Error generating add DNS Servers cmd")
 			}
-
-			_, err = nm.plClient.ExecuteCommand(cmd)
-			if err != nil {
-				return errors.Wrapf(err, "Error executing add DNS Servers with cmd %s", cmd)
+			if cmd != "" {
+				_, err = nm.plClient.ExecuteCommand(cmd)
+				if err != nil {
+					return errors.Wrapf(err, "Error executing add DNS Servers with cmd %s", cmd)
+				}
 			}
 		}
 
