@@ -13,7 +13,9 @@ import (
 
 	"github.com/Azure/azure-container-networking/cns"
 	"github.com/Azure/azure-container-networking/cns/common"
+	"github.com/Azure/azure-container-networking/cns/configuration"
 	"github.com/Azure/azure-container-networking/cns/fakes"
+	"github.com/Azure/azure-container-networking/cns/middlewares"
 	"github.com/Azure/azure-container-networking/cns/middlewares/mock"
 	"github.com/Azure/azure-container-networking/cns/types"
 	"github.com/Azure/azure-container-networking/crd/nodenetworkconfig/api/v1alpha"
@@ -67,7 +69,6 @@ func getTestService() *HTTPRestService {
 	var config common.ServiceConfig
 	httpsvc, _ := NewHTTPRestService(&config, &fakes.WireserverClientFake{}, &fakes.WireserverProxyFake{}, &fakes.NMAgentClientFake{}, store.NewMockStore(""), nil, nil)
 	svc = httpsvc
-	svc.ipConfigsRequestValidators = append(svc.ipConfigsRequestValidators, svc.validateDefaultIPConfigsRequest)
 	httpsvc.IPAMPoolMonitor = &fakes.MonitorFake{}
 	setOrchestratorTypeInternal(cns.KubernetesCRD)
 
@@ -1533,14 +1534,65 @@ func TestIPAMFailToRequestPartialIPsInPool(t *testing.T) {
 	}
 }
 
-func TestIPAMGetSWIFTv2IPSuccess(t *testing.T) {
+func TestIPAMReleaseSWIFTV2PodIPSuccess(t *testing.T) {
 	svc := getTestService()
-	middleware := mock.NewMockSWIFTv2Middleware()
-	svc.AttachSWIFTv2Middleware(middleware)
+	middleware := middlewares.K8sSWIFTv2Middleware{Cli: mock.NewClient()}
+	svc.AttachIPConfigsHandlerMiddleware(&middleware)
 
-	middleware.SetEnvVar()
-	defer middleware.UnsetEnvVar() //nolint:errcheck // ignore error
-	middleware.SetMTPNCReady()
+	t.Setenv(configuration.EnvPodCIDRs, "10.0.1.10/24")
+	t.Setenv(configuration.EnvServiceCIDRs, "10.0.2.10/24")
+	t.Setenv(configuration.EnvInfraVNETCIDRs, "10.0.3.10/24")
+
+	ncStates := []ncState{
+		{
+			ncID: testNCID,
+			ips: []string{
+				testIP1,
+			},
+		},
+		{
+			ncID: testNCIDv6,
+			ips: []string{
+				testIP1v6,
+			},
+		},
+	}
+
+	// Add Available Pod IP to state
+	for i := range ncStates {
+		ipconfigs := make(map[string]cns.IPConfigurationStatus, 0)
+		state := NewPodState(ncStates[i].ips[0], ipIDs[i][0], ncStates[i].ncID, types.Available, 0)
+		ipconfigs[state.ID] = state
+		err := UpdatePodIPConfigState(t, svc, ipconfigs, ncStates[i].ncID)
+		if err != nil {
+			t.Fatalf("Expected to not fail adding IPs to state: %+v", err)
+		}
+	}
+
+	req := cns.IPConfigsRequest{
+		PodInterfaceID:   testPod1Info.InterfaceID(),
+		InfraContainerID: testPod1Info.InfraContainerID(),
+	}
+	b, _ := testPod1Info.OrchestratorContext()
+	req.OrchestratorContext = b
+	req.DesiredIPAddresses = make([]string, 2)
+	req.DesiredIPAddresses[0] = testIP1
+	req.DesiredIPAddresses[1] = testIP1v6
+	// Requesting release ip config for SWIFT V2 pod when mtpnc is not ready, should be a no-op
+	_, err := svc.releaseIPConfigHandlerHelper(context.TODO(), req)
+	if err != nil {
+		t.Fatalf("Expected not to fail when requesting to release SWIFT V2 pod due to MTPNC not ready")
+	}
+}
+
+func TestIPAMGetK8sSWIFTv2IPSuccess(t *testing.T) {
+	svc := getTestService()
+	middleware := middlewares.K8sSWIFTv2Middleware{Cli: mock.NewClient()}
+	svc.AttachIPConfigsHandlerMiddleware(&middleware)
+
+	t.Setenv(configuration.EnvPodCIDRs, "10.0.1.10/24")
+	t.Setenv(configuration.EnvServiceCIDRs, "10.0.2.10/24")
+	t.Setenv(configuration.EnvInfraVNETCIDRs, "10.0.3.10/24")
 
 	ncStates := []ncState{
 		{
@@ -1578,7 +1630,8 @@ func TestIPAMGetSWIFTv2IPSuccess(t *testing.T) {
 	req.DesiredIPAddresses[0] = testIP1
 	req.DesiredIPAddresses[1] = testIP1v6
 
-	resp, err := svc.requestIPConfigHandlerHelper(context.TODO(), req)
+	wrappedHandler := svc.IPConfigsHandlerMiddleware.IPConfigsRequestHandlerWrapper(svc.requestIPConfigHandlerHelper, svc.releaseIPConfigHandlerHelper)
+	resp, err := wrappedHandler(context.TODO(), req)
 	if err != nil {
 		t.Fatalf("Expected to not fail requesting IPs: %+v", err)
 	}
@@ -1595,10 +1648,10 @@ func TestIPAMGetSWIFTv2IPSuccess(t *testing.T) {
 	assert.False(t, podIPInfo[2].SkipDefaultRoutes)
 }
 
-func TestIPAMGetSWIFTv2IPFailure(t *testing.T) {
+func TestIPAMGetK8sSWIFTv2IPFailure(t *testing.T) {
 	svc := getTestService()
-	middleware := mock.NewMockSWIFTv2Middleware()
-	svc.AttachSWIFTv2Middleware(middleware)
+	middleware := middlewares.K8sSWIFTv2Middleware{Cli: mock.NewClient()}
+	svc.AttachIPConfigsHandlerMiddleware(&middleware)
 	ncStates := []ncState{
 		{
 			ncID: testNCID,
@@ -1623,27 +1676,38 @@ func TestIPAMGetSWIFTv2IPFailure(t *testing.T) {
 			t.Fatalf("Expected to not fail adding IPs to state: %+v", err)
 		}
 	}
+	// MTPNC not ready for this pod
 	req := cns.IPConfigsRequest{
-		PodInterfaceID:   testPod1Info.InterfaceID(),
-		InfraContainerID: testPod1Info.InfraContainerID(),
+		PodInterfaceID:   testPod2Info.InterfaceID(),
+		InfraContainerID: testPod2Info.InfraContainerID(),
 	}
-	b, _ := testPod1Info.OrchestratorContext()
+	b, _ := testPod2Info.OrchestratorContext()
 	req.OrchestratorContext = b
 	req.DesiredIPAddresses = make([]string, 2)
 	req.DesiredIPAddresses[0] = testIP1
 	req.DesiredIPAddresses[1] = testIP1v6
-	_, err := svc.requestIPConfigHandlerHelper(context.TODO(), req)
+	wrappedHandler := svc.IPConfigsHandlerMiddleware.IPConfigsRequestHandlerWrapper(svc.requestIPConfigHandlerHelper, svc.releaseIPConfigHandlerHelper)
+	_, err := wrappedHandler(context.TODO(), req)
 	if err == nil {
 		t.Fatalf("Expected failing requesting IPs due to MTPNC not ready")
 	}
 	available := svc.GetAvailableIPConfigs()
 	if len(available) != 2 {
-		t.Fatal("Expected available ips to be 2 since we expect the IP to not be assigned")
+		t.Fatalf("Expected available ips to be 2 since we expect the IP to not be assigned. Available IPs: %d", len(available))
 	}
 
-	middleware.SetMTPNCReady()
+	// MTPNC is ready for this pod but env vars not set
+	req = cns.IPConfigsRequest{
+		PodInterfaceID:   testPod1Info.InterfaceID(),
+		InfraContainerID: testPod1Info.InfraContainerID(),
+	}
+	b, _ = testPod1Info.OrchestratorContext()
+	req.OrchestratorContext = b
+	req.DesiredIPAddresses = make([]string, 2)
+	req.DesiredIPAddresses[0] = testIP1
+	req.DesiredIPAddresses[1] = testIP1v6
 
-	_, err = svc.requestIPConfigHandlerHelper(context.TODO(), req)
+	_, err = wrappedHandler(context.TODO(), req)
 	if err == nil {
 		t.Fatalf("Expected failing requesting IPs due to not able to set routes")
 	}
