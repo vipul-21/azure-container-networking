@@ -596,6 +596,7 @@ stages:
         - aks_swift_e2e
         - cilium_e2e
         - cilium_overlay_e2e
+        - cilium_h_overlay_e2e
         - aks_ubuntu_22_linux_e2e
         - aks_windows_22_e2e
         - dualstackoverlay_e2e
