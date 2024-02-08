@@ -1230,6 +1230,13 @@ func InitializeCRDState(ctx context.Context, httpRestService cns.HTTPService, cn
 		}
 	}
 
+	// perform state migration from CNI in case CNS is set to manage the endpoint state and has emty state
+	if cnsconfig.EnableStateMigration && !httpRestServiceImplementation.EndpointStateStore.Exists() {
+		if err = PopulateCNSEndpointState(httpRestServiceImplementation.EndpointStateStore); err != nil {
+			return errors.Wrap(err, "failed to create CNS EndpointState From CNI")
+		}
+	}
+
 	var podInfoByIPProvider cns.PodInfoByIPProvider
 	switch {
 	case cnsconfig.ManageEndpointState:
@@ -1514,5 +1521,19 @@ func createOrUpdateNodeInfoCRD(ctx context.Context, restConfig *rest.Config, nod
 		return errors.Wrap(err, "error ensuring nodeinfo CRD exists and is up-to-date")
 	}
 
+	return nil
+}
+
+// PopulateCNSEndpointState initilizes CNS Endpoint State by Migrating the CNI state.
+func PopulateCNSEndpointState(endpointStateStore store.KeyValueStore) error {
+	logger.Printf("State Migration is enabled")
+	endpointState, err := cnireconciler.MigrateCNISate()
+	if err != nil {
+		return errors.Wrap(err, "failed to create CNS Endpoint state from CNI")
+	}
+	err = endpointStateStore.Write(restserver.EndpointStoreKey, endpointState)
+	if err != nil {
+		return fmt.Errorf("failed to write endpoint state to store: %w", err)
+	}
 	return nil
 }

@@ -29,6 +29,11 @@ var (
 	ErrEndpointStateNotFound  = errors.New("endpoint state could not be found in the statefile")
 )
 
+const (
+	ContainerIDLength = 8
+	InterfaceName     = "eth0"
+)
+
 // requestIPConfigHandlerHelper validates the request, assign IPs and return the IPConfigs
 func (service *HTTPRestService) requestIPConfigHandlerHelper(ctx context.Context, ipconfigsRequest cns.IPConfigsRequest) (*cns.IPConfigsResponse, error) {
 	// For SWIFT v2 scenario, the validator function will also modify the ipconfigsRequest.
@@ -1008,9 +1013,9 @@ func (service *HTTPRestService) EndpointHandlerAPI(w http.ResponseWriter, r *htt
 // GetEndpointHandler handles the incoming GetEndpoint requests with http Get method
 func (service *HTTPRestService) GetEndpointHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Printf("[GetEndpointState] GetEndpoint for %s", r.URL.Path)
-
 	endpointID := strings.TrimPrefix(r.URL.Path, cns.EndpointPath)
 	endpointInfo, err := service.GetEndpointHelper(endpointID)
+	// Check if the request is valid
 	if err != nil {
 		response := GetEndpointResponse{
 			Response: Response{
@@ -1066,6 +1071,14 @@ func (service *HTTPRestService) GetEndpointHelper(endpointID string) (*EndpointI
 	}
 	if endpointInfo, ok := service.EndpointState[endpointID]; ok {
 		logger.Warnf("[GetEndpointState] Found existing endpoint state for container %s", endpointID)
+		return endpointInfo, nil
+	}
+	// This part is a temprory fix if we have endpoint states belong to CNI version 1.4.X on Windows since the states don't have the containerID
+	// In case there was no endpoint founded with ContainerID as the key,
+	// then [First 8 character of containerid]-eth0 will be tried
+	legacyEndpointID := endpointID[:ContainerIDLength] + "-" + InterfaceName
+	if endpointInfo, ok := service.EndpointState[legacyEndpointID]; ok {
+		logger.Warnf("[GetEndpointState] Found existing endpoint state for container %s", legacyEndpointID)
 		return endpointInfo, nil
 	}
 	return nil, ErrEndpointStateNotFound
