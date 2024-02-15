@@ -79,7 +79,7 @@ spec:
           operator: Exists
       containers:
         - name: azure-npm
-          image: mcr.microsoft.com/containernetworking/azure-npm:v1.4.29
+          image: mcr.microsoft.com/containernetworking/azure-npm:v1.4.45.3
           resources:
             limits:
               cpu: 250m
@@ -106,6 +106,7 @@ spec:
             - name: azure-npm-config
               mountPath: /etc/azure-npm
       hostNetwork: true
+      hostUsers: false
       nodeSelector:
         kubernetes.io/os: linux
       volumes:
@@ -162,7 +163,6 @@ data:
             "EnableHTTPDebugAPI":      true,
             "EnableV2NPM":             true,
             "PlaceAzureChainFirst":    false,
-            "ApplyIPSetsOnNeed":       false,
             "ApplyInBackground":       true,
             "NetPolInBackground":      true
         }
