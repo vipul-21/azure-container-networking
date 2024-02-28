@@ -650,12 +650,6 @@ func main() {
 		return
 	}
 
-	homeAzMonitor := restserver.NewHomeAzMonitor(nmaClient, time.Duration(cnsconfig.AZRSettings.PopulateHomeAzCacheRetryIntervalSecs)*time.Second)
-	if cnsconfig.AZRSettings.EnableAZR {
-		logger.Printf("start the goroutine for refreshing homeAz")
-		homeAzMonitor.Start()
-	}
-
 	if cnsconfig.ChannelMode == cns.Managed {
 		config.ChannelMode = cns.Managed
 		privateEndpoint = cnsconfig.ManagedSettings.PrivateEndpoint
@@ -667,6 +661,14 @@ func main() {
 		config.ChannelMode = cns.MultiTenantCRD
 	} else if acn.GetArg(acn.OptManaged).(bool) {
 		config.ChannelMode = cns.Managed
+	}
+
+	homeAzMonitor := restserver.NewHomeAzMonitor(nmaClient, time.Duration(cnsconfig.AZRSettings.PopulateHomeAzCacheRetryIntervalSecs)*time.Second)
+	// homeAz monitor is only required when there is a direct channel between DNC and CNS.
+	// This will prevent the monitor from unnecessarily calling NMA APIs for other scenarios such as AKS-swift, swiftv2
+	if cnsconfig.ChannelMode == cns.Direct {
+		homeAzMonitor.Start()
+		defer homeAzMonitor.Stop()
 	}
 
 	if telemetryDaemonEnabled {
@@ -1013,11 +1015,6 @@ func main() {
 		} else {
 			logger.Printf("[Azure CNS] Failed to delete default ext network due to error: %v", err)
 		}
-	}
-
-	if cnsconfig.AZRSettings.EnableAZR {
-		logger.Printf("end the goroutine for refreshing homeAz")
-		homeAzMonitor.Stop()
 	}
 
 	logger.Printf("stop cns service")
