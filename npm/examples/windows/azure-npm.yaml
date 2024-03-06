@@ -87,11 +87,8 @@ spec:
           command: ["powershell.exe"]
           args:
             [
-              '.\setkubeconfigpath.ps1',
-              ";",
-              '.\npm.exe',
+              '$env:CONTAINER_SANDBOX_MOUNT_POINT/npm.exe',
               "start",
-              '--kubeconfig=.\kubeconfig',
             ]
           resources:
             limits:
