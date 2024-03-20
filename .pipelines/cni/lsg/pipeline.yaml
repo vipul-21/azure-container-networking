@@ -1,0 +1,100 @@
+parameters:
+- name: KernelVersion
+  type: string
+  default: 1000
+- name: KernelType
+  type: string
+  default: linux-azure-edge
+- name: ProposedRepoVersion
+  type: string
+  default: proposed
+
+pr: none
+trigger: none
+
+# Placeholder for when we want to enable automatic queuing of pipeline from LSG's pipeline.
+# Fully functional to queue off of ACN PR Pipeline
+# resources:
+#   pipelines:
+#   - pipeline: ACN-PR # Name of the pipeline resource.
+#     source: \Custom\Networking\ContainerNetworking\Azure Container Networking PR # The name of the pipeline referenced by this pipeline resource.
+#     trigger: true # Run CNI | LSG Integration pipeline when any run of LSG defined pipeline completes
+
+
+stages:
+  - stage: setup
+    displayName: Setup
+    jobs:
+      - job: env
+        displayName: Setup
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - script: |
+              echo "Setting up environment"
+              go version
+              echo "##vso[task.setvariable variable=commitID;isOutput=true]$(echo $(make revision)-$(date "+%d%H%M"))"
+              echo "##vso[task.setvariable variable=cnsVersion;isOutput=true]$(CNS_VERSION)"
+              echo "##vso[task.setvariable variable=cniVersion;isOutput=true]$(CNI_VERSION)"
+
+              echo "------"
+              echo Queued by $(Build.QueuedBy)
+              echo "Runtime Parameters passed"
+              echo "KernelType : ${{ parameters.KernelType }}"
+              echo "KernelVersion : ${{ parameters.KernelVersion }}"
+              echo "ProposedRepoVersion : ${{ parameters.ProposedRepoVersion }}"
+              echo "------"
+              echo "KernelType Check"
+              KernelType=${{ parameters.KernelType }}
+              if [ $KernelType = 'proposed-azure' ]; then
+                echo "KernelType is $KernelType , change to linux-azure"
+                KernelType=linux-azure
+              fi
+              if [ $KernelType = 'proposed-edge' ]; then
+                echo "KernelType is $KernelType , change to linux-azure-edge"
+                KernelType=linux-azure-edge
+              fi
+              echo "##vso[task.setvariable variable=kernelType;isOutput=true]$KernelType"
+            name: "SetEnvVars"
+            displayName: "Set Environment Variables"
+            condition: always()
+
+  - template: lsg-cni-intergration-template.yaml
+    parameters:
+      name: linux_over
+      clusterType: overlay-byocni-up
+      clusterName: "kup-over"
+      nodeCount: 2
+      vmSize: Standard_B2ms
+      arch: amd64
+      cni: cniv2
+      test: par
+      KernelVersion : ${{ parameters.KernelVersion }}
+      ProposedRepoVersion : ${{ parameters.ProposedRepoVersion }}
+
+  - stage: delete_resources
+    displayName: "Delete Resources"
+    pool:
+      name: "$(BUILD_POOL_NAME_DEFAULT)"
+    condition: always()
+    dependsOn:
+      - linux_over
+      - setup
+    variables:
+      commitID: $[ stagedependencies.setup.env.outputs['SetEnvVars.commitID'] ]
+    jobs:
+      - job: delete
+        displayName: Delete Cluster
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        strategy:
+          matrix:
+            linux_overlay:
+              name: linux_over
+              clusterName: "kup-over"
+        steps:
+          - template: ../../templates/delete-cluster.yaml
+            parameters:
+              name: $(name)
+              clusterName: $(clusterName)-$(commitID)
+              region: $(LOCATION)
